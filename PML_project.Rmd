@@ -1,0 +1,107 @@
+---
+title: "PML_project"
+author: "arnela82"
+date: "7/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The main goal of the Project is to quantify how well an individual perform for a particular activity. This will be accomplished by training a prediction model on the accelerometer data. The algorithm that we will be using for this exercise will be a random forest classifier.
+
+We will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. People were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+The training data and the test data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+##Load libraries
+```{r cache=TRUE}
+library(randomForest)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+```
+
+##Download and load data
+Now we will download and load training and test set
+```{r}
+train_url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test_url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainFile<-"./coursera/pml-training.csv"
+testFile<-"./coursera/pml-testing.csv"
+
+```
+
+##Read the data
+After downloading the data from data source, we will read two csv files into data frame
+
+```{r cache=TRUE}
+trainR<- read.csv("C:/Users/Arnela/Desktop/coursera/pml-training.csv")
+testR<-read.csv("C:/Users/Arnela/Desktop/coursera/pml-testing.csv")
+dim(trainR)
+dim(testR)
+```
+We can see that the training data set contains 19662 observations and 160 variables, while test data set contains 20 observations and 160 variables.The "classe" variable in the training set is the outcome to predict. 
+
+##Clean the data
+Now, we will clean the data and get rid of observations with missing values as well as some meaningless variables.
+
+```{r, cache=TRUE}
+sum(complete.cases(trainR))
+```
+We will remove columns that contain NA
+```{r, cache=TRUE}
+trainR<-trainR[,colSums(is.na(trainR))==0]
+testR<-testR[,colSums(is.na(testR))==0]
+```
+
+
+Next, we get rid of some columns that do not contribute much to the accelerometer measurements.
+
+```{r, cache=TRUE}
+classe<-trainR$classe
+trainRemove<-grepl("^X|timespamp|window", names(trainR))
+trainR<-trainR[,!trainRemove]
+trainClean<-trainR[,sapply(trainR,is.numeric)]
+trainClean$classe<-classe
+testRemove<-grepl("^X|timestamp|window", names(testR))
+testR<-testR[,!testRemove]
+testClean<-testR[,sapply(testR, is.numeric)]
+```
+
+##Create train and test data 70 - 30
+We can split our trining set into a training data set ( 70% ) and test/validation set ( 30% ). We will use the validation data set to conduct cross validation in future steps.  
+```{r, cache = TRUE}
+set.seed(22519)
+inTrain<-createDataPartition(trainClean$classe, p=.7, list=FALSE)
+trainData<- trainClean[inTrain, ]
+testData<-trainClean[-inTrain, ]
+```
+
+##Data modeling
+We fit a predictive model for activity recognition using **Random Forest** algorithm because it automatically selects important variables and is robust to correlated covariates & outliers in general. We will use **5-fold cross validation** when applying the algorithm.
+
+```{r, cache=TRUE}
+train_control <- trainControl(method="cv", number=3)
+model <- train(classe~., data=trainData, method="rf", trControl = train_control)
+model
+```
+####Prediction
+First we'll make predictions on training dataset and then on testing dataset.
+```{r, cache=TRUE}
+prediction <- predict(model, trainData, type="raw")
+c<-confusionMatrix(prediction, trainData$classe)
+print("In Sample Error Rate")
+prediction <- predict(model, testData, type="raw")
+c<-confusionMatrix(prediction, testData$classe)
+prediction <- predict(model, predictDataset, type="raw")
+print(1-c[["overall"]][["Accuracy"]])
+prediction <- predict(model, predictDataset, type="raw")
+prediction
+```
+
+
+
+
