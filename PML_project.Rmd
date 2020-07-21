@@ -2,7 +2,9 @@
 title: "PML_project"
 author: "arnela82"
 date: "7/20/2020"
-output: html_document
+output:
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -81,26 +83,35 @@ testData<-trainClean[-inTrain, ]
 ```
 
 ##Data modeling
-We fit a predictive model for activity recognition using **Random Forest** algorithm because it automatically selects important variables and is robust to correlated covariates & outliers in general. We will use **5-fold cross validation** when applying the algorithm.
+I used the *random-forest* technique to generate a predictive model. In sum, 10 models were trained. I played around with the parameters passed to `trControl` and specified different models with bootstrapping (`method = "boot"`) and cross-validation (`method = "cv"`).
+
+It took more than one day to train all models. Afterwards I tested their performance on the cross-validation dataset. It turned out that all models showed a good performance (because their accuracy was above 99%) though their training times were quite different.
+
+Due to the similar performance, I will present the model with the shortest training time.
+
 
 ```{r, cache=TRUE}
-train_control <- trainControl(method="cv", number=3)
-model <- train(classe~., data=trainData, method="rf", trControl = train_control)
-model
+library(randomForest)
+trControl<- trainControl(method = "cv", number = 2)
+modFit<-train(classe ~ ., data= trainData, method="rf", trControl=trControl)
 ```
-####Prediction
-First we'll make predictions on training dataset and then on testing dataset.
-```{r, cache=TRUE}
-prediction <- predict(model, trainData, type="raw")
-c<-confusionMatrix(prediction, trainData$classe)
-print("In Sample Error Rate")
-prediction <- predict(model, testData, type="raw")
-c<-confusionMatrix(prediction, testData$classe)
-prediction <- predict(model, predictDataset, type="raw")
-print(1-c[["overall"]][["Accuracy"]])
-prediction <- predict(model, predictDataset, type="raw")
-prediction
+
+####Evaluate the model ( out - of -sample error )
+
+First we'll make predictions on outcome in cross-validation dataset.
+```{r predict, cache=TRUE}
+pred<- predict(modFit, newdata=testData)
+
 ```
+
+Second, the function 'confusionMatrix' is used to calculate the accuracy of the prediction.
+
+```{r accuracy}
+cM<-confusionMatrix(pred, reference = testData$classe)
+acc<-cM$overall["Accuracy"]
+acc
+```
+The accuracy of the prediction is `r paste0(round(acc * 100, 2), "%")`. Hence, the *out-of-sample error* is `r paste0(round(100 - acc * 100, 2), "%")`.
 
 
 
